@@ -21,6 +21,7 @@ defmodule Ueberauth.Strategy.SlackV2 do
     uid_field: :email,
     default_scope: "users:read",
     default_user_scope: "",
+    send_redirect_uri: true,
     oauth2_module: Ueberauth.Strategy.SlackV2.OAuth
 
   alias Ueberauth.Auth.Info
@@ -30,24 +31,12 @@ defmodule Ueberauth.Strategy.SlackV2 do
   # When handling the request just redirect to Slack
   @doc false
   def handle_request!(conn) do
-    scopes = conn.params["scope"] || option(conn, :default_scope)
-    user_scopes = conn.params["user_scope"] || option(conn, :default_user_scope)
-    opts = [scope: scopes, user_scope: user_scopes]
-
     opts =
-      if conn.params["state"], do: Keyword.put(opts, :state, conn.params["state"]), else: opts
+      []
+      |> with_scopes(conn)
+      |> with_state_param(conn)
+      |> with_redirect_uri(conn)
 
-    team = option(conn, :team)
-    opts = if team, do: Keyword.put(opts, :team, team), else: opts
-
-    callback_url = callback_url(conn)
-
-    callback_url =
-      if String.ends_with?(callback_url, "?"),
-        do: String.slice(callback_url, 0..-2),
-        else: callback_url
-
-    opts = Keyword.put(opts, :redirect_uri, callback_url)
     module = option(conn, :oauth2_module)
 
     redirect!(conn, apply(module, :authorize_url!, [opts]))
@@ -397,6 +386,20 @@ defmodule Ueberauth.Strategy.SlackV2 do
       callback_url(conn)
     else
       redirect_uri
+    end
+  end
+
+  defp with_scopes(opts, conn) do
+    scopes = conn.params["scope"] || option(conn, :default_scope)
+
+    opts |> Keyword.put(:scope, scopes)
+  end
+
+  defp with_redirect_uri(opts, conn) do
+    if option(conn, :send_redirect_uri) do
+      opts |> Keyword.put(:redirect_uri, callback_url(conn))
+    else
+      opts
     end
   end
 end

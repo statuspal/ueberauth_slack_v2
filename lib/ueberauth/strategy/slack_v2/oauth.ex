@@ -38,7 +38,9 @@ defmodule Ueberauth.Strategy.SlackV2.OAuth do
     url =
       [token: token]
       |> client()
-      |> to_url(url, Map.put(params, "token", token.access_token))
+      |> to_url(url, params)
+
+    headers = headers ++ ["Authorization": "Bearer #{token.access_token}"]
 
     OAuth2.Client.get(client(), url, headers, opts)
   end
